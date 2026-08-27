@@ -1,0 +1,14 @@
+{
+  "name": "Flutter",
+  "image": "instrumentisto/flutter:latest",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dart-code.dart-code",
+        "dart-code.flutter",
+        "GitHub.copilot"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}
