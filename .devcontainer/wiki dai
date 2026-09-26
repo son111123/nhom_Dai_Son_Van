@@ -1,1 +1,24 @@
+# Dự án App Quản Lý Sinh Viên - Android
+## 1. Wireframe & Luồng công việc (Workflows)
+- **Luồng Quản lý Lớp & Hủy lớp:** 
+  1. Người dùng truy cập tab "Quản lý lớp" trên Bottom Navigation.
+  2. Danh sách các lớp học hiện tại hiển thị dưới dạng Card.
+  3. Khi nhấn nút "Hủy lớp", một Pop-up Dialog xác nhận sẽ xuất hiện để tránh thao tác nhầm.
+  4. Sau khi xác nhận, trạng thái lớp chuyển sang "ĐÃ HỦY" và vô hiệu hóa nút hành động.
 
+## 2. Cấu trúc Màn hình & Bottom Navigation Bar
+Ứng dụng gồm 4 màn hình chính được điều hướng qua Bottom Navigation Bar:
+1. `Home`: Màn hình Tổng quan / Báo cáo.
+2. `ClassManagement`: Màn hình Quản lý lớp & Hủy lớp.
+3. `Student`: Màn hình Quản lý danh sách sinh viên.
+4. `Profile`: Màn hình Thông tin cá nhân.
+
+## 3. Phân công Công việc
+- **[Tên sinh viên làm Quản lý lớp]**: Phụ trách viết code Bottom Navigation Bar chính và Màn hình Quản lý/Hủy lớp (`ClassManagementScreen.kt`).
+- **[Tên các thành viên khác]**: Phụ trách các màn hình Home, Student, Profile.
+
+## 4. Hình ảnh Giao diện (Screenshots)
+| Bottom Nav Item | Ảnh chụp màn hình |
+| :--- | :--- |
+| **Quản lý Lớp** | ![Màn hình danh sách lớp](./docs/screenshots/class_list.png) |
+| **Pop-up Hủy Lớp** | ![Dialog Hủy lớp](./docs/screenshots/cancel_dialog.png) |
