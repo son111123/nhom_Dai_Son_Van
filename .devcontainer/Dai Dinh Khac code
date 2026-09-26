@@ -1,3 +1,29 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Quản lý Sinh viên',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: false,
+      ),
+      home: const MainScreen(),
+    );
+  }
+}
+
+// ==========================================
+// 1. MODEL DỮ LIỆU
+// ==========================================
 class ClassModel {
   final String id;
   final String className;
@@ -11,9 +37,10 @@ class ClassModel {
     this.isCancelled = false,
   });
 }
-import 'package:flutter/material.dart';
-import 'class_management_screen.dart'; // Import màn hình quản lý lớp
 
+// ==========================================
+// 2. MÀN HÌNH CHÍNH (BOTTOM NAVIGATION BAR)
+// ==========================================
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
 
@@ -25,7 +52,6 @@ class _MainScreenState extends State<MainScreen> {
   // Mặc định chọn Tab Quản lý lớp (Index = 1)
   int _selectedIndex = 1;
 
-  // Danh sách các màn hình tương ứng với từng Tab
   final List<Widget> _screens = [
     const Center(child: Text('Màn hình Trang chủ', style: TextStyle(fontSize: 20))),
     const ClassManagementScreen(), // Màn hình do bạn phụ trách
@@ -72,9 +98,10 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-import 'package:flutter/material.dart';
-import 'class_model.dart';
 
+// ==========================================
+// 3. MÀN HÌNH QUẢN LÝ & HỦY LỚP (NHIỆM VỤ CỦA BẠN)
+// ==========================================
 class ClassManagementScreen extends StatefulWidget {
   const ClassManagementScreen({Key? key}) : super(key: key);
 
@@ -101,7 +128,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Đóng dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Quay lại'),
             ),
@@ -111,11 +138,10 @@ class _ClassManagementScreenState extends State<ClassManagementScreen> {
               ),
               onPressed: () {
                 setState(() {
-                  classItem.isCancelled = true; // Cập nhật trạng thái
+                  classItem.isCancelled = true;
                 });
-                Navigator.of(context).pop(); // Đóng dialog
+                Navigator.of(context).pop();
                 
-                // Hiển thị thông báo
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Đã hủy thành công lớp ${classItem.classCode}'),
@@ -180,7 +206,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen> {
                       ],
                     ),
                   ),
-                  // Nếu chưa hủy thì hiển thị nút "Hủy lớp"
                   if (!item.isCancelled)
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -198,29 +223,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen> {
           );
         },
       ),
-    );
-  }
-}
-import 'package:flutter/material.dart';
-import 'main_screen.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Quản lý Sinh viên',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: false,
-      ),
-      home: const MainScreen(),
     );
   }
 }
