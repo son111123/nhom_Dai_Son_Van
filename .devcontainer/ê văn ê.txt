@@ -1,0 +1,811 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const EduManageApp());
+}
+
+
+class Student {
+  final String id;
+  final String name;
+  final String email;
+  final String classCode;
+  final double score;
+  final String status;
+  final bool isInactive;
+
+  Student({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.classCode,
+    required this.score,
+    required this.status,
+    this.isInactive = false,
+  });
+
+  Student copyWith({double? score}) {
+    return Student(
+      id: id,
+      name: name,
+      email: email,
+      classCode: classCode,
+      score: score ?? this.score,
+      status: status,
+      isInactive: isInactive,
+    );
+  }
+
+  String get avatarText {
+    List<String> names = name.split(' ');
+    if (names.length >= 2) {
+      return (names[names.length - 2][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
+  }
+}
+
+class ClassInfo {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String teacherName;
+  final String teacherAvatar;
+  final int studentCount;
+  final String room;
+  final double progress;
+  final String tag;
+
+  ClassInfo({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.teacherName,
+    required this.teacherAvatar,
+    required this.studentCount,
+    required this.room,
+    required this.progress,
+    required this.tag,
+  });
+}
+
+class EduManageApp extends StatelessWidget {
+  const EduManageApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'EduManager',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFF4F6FB),
+        fontFamily: 'Roboto',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2563EB),
+          primary: const Color(0xFF2563EB),
+        ),
+        useMaterial3: true,
+      ),
+      home: const MainNavigationScreen(),
+    );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+  String _searchQuery = '';
+  final List<Student> _students = [
+    Student(id: '1', name: 'Nguyễn Minh Anh', email: 'minhanh@univ.edu.vn', classCode: 'CNTT K68-A', score: 8.7, status: 'Đang học'),
+    Student(id: '2', name: 'Trần Gia Huy', email: 'giahuy@univ.edu.vn', classCode: 'Kinh tế K67-B', score: 8.2, status: 'Đang học'),
+    Student(id: '3', name: 'Lê Hoàng Nam', email: 'hoangnam@univ.edu.vn', classCode: 'CNTT K68-A', score: 7.9, status: 'Đang học'),
+    Student(id: '4', name: 'Phạm Thu Hà', email: 'thuha@univ.edu.vn', classCode: 'Marketing K66', score: 8.5, status: 'Tạm nghỉ', isInactive: true),
+  ];
+
+  final List<ClassInfo> _classes = [
+    ClassInfo(
+      id: '1',
+      title: 'Công nghệ thông tin K68-A',
+      subtitle: 'Lập trình ứng dụng',
+      teacherName: 'TS. Nguyễn Văn Long',
+      teacherAvatar: 'VL',
+      studentCount: 42,
+      room: 'P. A305',
+      progress: 0.68,
+      tag: 'CNTT-68A',
+    ),
+    ClassInfo(
+      id: '2',
+      title: 'Kinh tế K67-B',
+      subtitle: 'Kinh tế vi mô',
+      teacherName: 'ThS. Lê Thu Trang',
+      teacherAvatar: 'TT',
+      studentCount: 38,
+      room: 'P. B201',
+      progress: 0.54,
+      tag: 'KT-67B',
+    ),
+  ];
+
+  void _addStudent(Student student) {
+    setState(() {
+      _students.insert(0, student);
+    });
+  }
+
+  void _addClass(ClassInfo newClass) {
+    setState(() {
+      _classes.insert(0, newClass);
+    });
+  }
+
+  void _updateStudentScore(String id, double newScore) {
+    setState(() {
+      final index = _students.indexWhere((s) => s.id == id);
+      if (index != -1) {
+        _students[index] = _students[index].copyWith(score: newScore);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredStudents = _students.where((s) {
+      final query = _searchQuery.toLowerCase();
+      return s.name.toLowerCase().contains(query) || 
+             s.email.toLowerCase().contains(query) || 
+             s.classCode.toLowerCase().contains(query);
+    }).toList();
+
+    final List<Widget> _screens = [
+      OverviewTab(students: _students, classes: _classes),
+      StudentsTab(
+        students: filteredStudents, 
+        onAddStudent: _addStudent,
+        onUpdateScore: _updateStudentScore,
+        onSearchChanged: (val) => setState(() => _searchQuery = val),
+      ),
+      ClassesTab(
+        classes: _classes, 
+        students: _students, // Pass students to ClassesTab
+        onAddClass: _addClass,
+      ),
+      const ProfileTab(),
+    ];
+
+    return Scaffold(
+      body: SafeArea(
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF2563EB),
+          unselectedItemColor: const Color(0xFF94A3B8),
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Tổng quan'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), label: 'Sinh viên'),
+            BottomNavigationBarItem(icon: Icon(Icons.article_outlined), label: 'Lớp học'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Hồ sơ'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+class OverviewTab extends StatelessWidget {
+  final List<Student> students;
+  final List<ClassInfo> classes;
+
+  const OverviewTab({super.key, required this.students, required this.classes});
+
+  double get averageScore {
+    if (students.isEmpty) return 0.0;
+    return students.map((s) => s.score).reduce((a, b) => a + b) / students.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        const HeaderWidget(title: 'Chào buổi sáng, Linh', subtitle: 'Đây là tổng quan hoạt động hôm nay.'),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.2,
+          children: [
+            StatCard(
+              title: 'Tổng sinh viên',
+              value: students.length.toString(),
+              subtext: '8,2%',
+              isPositive: true,
+              icon: Icons.people_outline,
+              iconBgColor: const Color(0xFFEFF6FF),
+              iconColor: const Color(0xFF2563EB),
+            ),
+            StatCard(
+              title: 'Điểm trung bình',
+              value: averageScore.toStringAsFixed(1),
+              subtext: 'Hệ số 10',
+              isPositive: true,
+              icon: Icons.star_outline,
+              iconBgColor: const Color(0xFFFFFBEB),
+              iconColor: const Color(0xFFF59E0B),
+            ),
+            StatCard(
+              title: 'Lớp đang hoạt động',
+              value: classes.length.toString(),
+              subtext: '3 lớp',
+              isPositive: true,
+              icon: Icons.menu_book_outlined,
+              iconBgColor: const Color(0xFFF3E8FF),
+              iconColor: const Color(0xFF9333EA),
+            ),
+            const StatCard(
+              title: 'Tỷ lệ chuyên cần',
+              value: '92,6%',
+              subtext: '1,4%',
+              isPositive: true,
+              icon: Icons.check_circle_outline,
+              iconBgColor: Color(0xFFDCFCE7),
+              iconColor: Color(0xFF16A34A),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        CardContainer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Thống kê sinh viên', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('Số lượng sinh viên theo khoa', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(8)),
+                    child: const Row(
+                      children: [
+                        Text('Năm học 2024–2025', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
+                        Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF475569)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+              const SizedBox(height: 24),
+              BarChartWidget(students: students),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        CardContainer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Sinh viên mới cập nhật', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('Danh sách các cập nhật gần nhất', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                    ],
+                  ),
+                  TextButton(onPressed: () {}, child: const Text('Xem tất cả')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...students.take(3).map((s) => Column(
+                children: [
+                  StudentListItem(student: s),
+                  const SizedBox(height: 10),
+                ],
+              )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+class StudentsTab extends StatelessWidget {
+  final List<Student> students;
+  final Function(Student) onAddStudent;
+  final Function(String, double) onUpdateScore;
+  final Function(String) onSearchChanged;
+
+  const StudentsTab({
+    super.key, 
+    required this.students, 
+    required this.onAddStudent,
+    required this.onUpdateScore,
+    required this.onSearchChanged,
+  });
+
+  void _showAddStudentDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final classController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thêm sinh viên mới'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Họ và tên')),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
+              TextField(controller: classController, decoration: const InputDecoration(labelText: 'Lớp học')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                final newStudent = Student(
+                  id: DateTime.now().toString(),
+                  name: nameController.text,
+                  email: emailController.text,
+                  classCode: classController.text,
+                  score: 0.0,
+                  status: 'Đang học',
+                );
+                onAddStudent(newStudent);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditScoreDialog(BuildContext context, Student student) {
+    final scoreController = TextEditingController(text: student.score.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Nhập điểm cho ${student.name}'),
+        content: TextField(
+          controller: scoreController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Điểm số (0-10)'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              final newScore = double.tryParse(scoreController.text);
+              if (newScore != null && newScore >= 0 && newScore <= 10) {
+                onUpdateScore(student.id, newScore);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        const HeaderWidget(title: 'Danh sách sinh viên', subtitle: 'Quản lý hồ sơ sinh viên.'),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                onChanged: onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Tìm kiếm theo tên, lớp...', 
+                  prefixIcon: const Icon(Icons.search), 
+                  filled: true, 
+                  fillColor: Colors.white, 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _showAddStudentDialog(context),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('Thêm', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (students.isEmpty)
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Không tìm thấy sinh viên nào.')))
+        else
+          ...students.map((s) => Column(
+            children: [
+              StudentListItem(
+                student: s,
+                onTap: () => _showEditScoreDialog(context, s),
+              ),
+              const SizedBox(height: 10),
+            ],
+          )),
+      ],
+    );
+  }
+}
+class ClassesTab extends StatelessWidget {
+  final List<ClassInfo> classes;
+  final List<Student> students;
+  final Function(ClassInfo) onAddClass;
+
+  const ClassesTab({
+    super.key, 
+    required this.classes, 
+    required this.students,
+    required this.onAddClass,
+  });
+
+  void _showAddClassDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final subtitleController = TextEditingController();
+    final teacherController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo lớp học mới'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Tên lớp (VD: CNTT K68-A)')),
+              TextField(controller: subtitleController, decoration: const InputDecoration(labelText: 'Môn học')),
+              TextField(controller: teacherController, decoration: const InputDecoration(labelText: 'Giảng viên')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              if (titleController.text.isNotEmpty) {
+                final newClass = ClassInfo(
+                  id: DateTime.now().toString(),
+                  title: titleController.text,
+                  subtitle: subtitleController.text,
+                  teacherName: teacherController.text,
+                  teacherAvatar: teacherController.text.isNotEmpty ? teacherController.text.substring(0, 1).toUpperCase() : '?',
+                  studentCount: 0,
+                  room: 'Chưa xác định',
+                  progress: 0.0,
+                  tag: 'Mới',
+                );
+                onAddClass(newClass);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Tạo'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        const HeaderWidget(title: 'Danh sách lớp học', subtitle: 'Quản lý các lớp học.'),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: () => _showAddClassDialog(context),
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text('Tạo lớp mới', style: TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+        ),
+        const SizedBox(height: 16),
+        ...classes.map((c) => Column(
+          children: [
+            ClassCardWidget(
+              classInfo: c,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ClassDetailScreen(
+                      classInfo: c,
+                      students: students.where((s) => s.classCode == c.title).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        )),
+      ],
+    );
+  }
+}
+class ClassDetailScreen extends StatelessWidget {
+  final ClassInfo classInfo;
+  final List<Student> students;
+
+  const ClassDetailScreen({super.key, required this.classInfo, required this.students});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(classInfo.title),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      body: students.isEmpty
+          ? const Center(child: Text('Chưa có sinh viên nào trong lớp này.'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: students.length,
+              itemBuilder: (context, index) {
+                final student = students[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: StudentListItem(student: student),
+                );
+              },
+            ),
+    );
+  }
+}
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Thông tin hồ sơ'));
+  }
+}
+class HeaderWidget extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const HeaderWidget({super.key, required this.title, required this.subtitle});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        ]),
+        const CircleAvatar(backgroundColor: Color(0xFF1E3A8A), child: Text('HL', style: TextStyle(color: Colors.white))),
+      ],
+    );
+  }
+}
+
+class CardContainer extends StatelessWidget {
+  final Widget child;
+  const CardContainer({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)]),
+      child: child,
+    );
+  }
+}
+
+class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtext;
+  final bool isPositive;
+  final bool isTextSub;
+  final IconData icon;
+  final Color iconBgColor;
+  final Color iconColor;
+  const StatCard({super.key, required this.title, required this.value, required this.subtext, this.isPositive = false, this.isTextSub = false, required this.icon, required this.iconBgColor, required this.iconColor});
+  @override
+  Widget build(BuildContext context) {
+    return CardContainer(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: iconColor, size: 18)),
+        ]),
+        Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        Text(subtext, style: TextStyle(fontSize: 11, color: isPositive ? Colors.green : Colors.grey)),
+      ]),
+    );
+  }
+}
+
+class StudentListItem extends StatelessWidget {
+  final Student student;
+  final VoidCallback? onTap;
+  const StudentListItem({super.key, required this.student, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF1F5F9))),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: student.isInactive ? Colors.grey : Colors.blue.shade100, child: Text(student.avatarText)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(student.classCode, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ])),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(student.score.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                const Text('Nhập điểm', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ClassCardWidget extends StatelessWidget {  final ClassInfo classInfo;
+  final VoidCallback? onTap;
+  const ClassCardWidget({super.key, required this.classInfo, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: CardContainer(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.article_outlined, color: Colors.blue)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(classInfo.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(classInfo.subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ])),
+          ]),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(value: classInfo.progress, backgroundColor: Colors.grey.shade200, color: Colors.blue),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('${classInfo.studentCount} sinh viên', style: const TextStyle(fontSize: 12)),
+            Text(classInfo.teacherName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+class BarChartWidget extends StatelessWidget {
+  final List<Student> students;
+  const BarChartWidget({super.key, required this.students});
+
+  @override
+  Widget build(BuildContext context) {
+    // Group students by classCode
+    Map<String, int> classCounts = {};
+    for (var student in students) {
+      classCounts[student.classCode] = (classCounts[student.classCode] ?? 0) + 1;
+    }
+
+    // Sort by count descending
+    var sortedClasses = classCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (students.isEmpty) {
+      return const SizedBox(
+        height: 150,
+        child: Center(child: Text('Chưa có dữ liệu sinh viên', style: TextStyle(color: Colors.grey))),
+      );
+    }
+
+    int maxCount = sortedClasses.first.value;
+
+    return SizedBox(
+      height: 180,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: sortedClasses.take(5).map((entry) {
+          double heightFactor = entry.value / (maxCount > 0 ? maxCount : 1);
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(entry.value.toString(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+              const SizedBox(height: 4),
+              Container(
+                width: 32,
+                height: 120 * heightFactor,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF60A5FA), Color(0xFF2563EB)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2563EB).withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 60,
+                child: Text(
+                  entry.key,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
