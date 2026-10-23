@@ -26,7 +26,7 @@
 | STT | Họ và tên | Công việc được giao |
 |---|---|---|
 | 1 | [Đinh Khắc Đại] | [Nhiệm vụ] |
-| 2 | [Họ tên thành viên 2] | [Nhiệm vụ] |
+| 2 | [Nguyễn Anh Văn] | [Thiết kế UI] |
 | 3 | Nguyễn Thái Sơn | [Screen/Page được giao] |
 | 4 | [Họ tên thành viên 4] | [Nhiệm vụ] |
 
