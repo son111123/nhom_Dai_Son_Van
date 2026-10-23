@@ -34,7 +34,7 @@
 
 ## 3. Thiết kế giao diện – Figma
 
-**Link thiết kế Figma:** [Dán link Figma tại đây]
+**Link thiết kế Figma:**[ [Dán link Figma tại đây]](https://tusk-icing-54303581.figma.site/)
 
 Các màn hình chính của ứng dụng:
 
