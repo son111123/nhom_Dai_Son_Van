@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class ProfileTab extends StatelessWidget {
-  const ProfileTab({super.key});
+  final String username;
+  final VoidCallback onLogout;
+
+  const ProfileTab({
+    super.key,
+    required this.username,
+    required this.onLogout,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,9 +52,9 @@ class ProfileTab extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      'Nguyễn Văn Linh',
+                      username,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -55,13 +62,13 @@ class ProfileTab extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'linh.nv@univ.edu.vn',
+                      'Tài khoản EduManager',
                       style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
                     ),
                     SizedBox(height: 6),
                     Chip(
                       label: Text(
-                        'Quản trị viên / Giảng viên',
+                        'Tài khoản người dùng',
                         style: TextStyle(
                           fontSize: 11,
                           color: Color(0xFF2563EB),
@@ -139,7 +146,7 @@ class ProfileTab extends StatelessWidget {
         const SizedBox(height: 24),
         // Nút Đăng xuất
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: onLogout,
           icon: const Icon(Icons.logout, color: Colors.red),
           label: const Text(
             'Đăng xuất',
@@ -187,26 +194,29 @@ class _ProfileMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: const Color(0xFF475569), size: 22),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: const Color(0xFF475569), size: 22),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500), 
+        ),
+        trailing:
+            trailing ??
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (trailingText != null)
+                  Text(
+                    trailingText!,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+              ],
+            ),
       ),
-      trailing:
-          trailing ??
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (trailingText != null)
-                Text(
-                  trailingText!,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-            ],
-          ),
     );
   }
 }
