@@ -341,7 +341,7 @@ class ClassCardWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${classInfo.studentCount} sinh viên',
+                  '${classInfo.studentCount} sinh viên',  
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF475569),
