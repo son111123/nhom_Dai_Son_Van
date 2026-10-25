@@ -4,10 +4,18 @@ import 'sinhvien.dart';
 import 'lophoc.dart';
 
 class OverviewTab extends StatelessWidget {
+  final String username;
   final List<Student> students;
   final List<ClassInfo> classes;
+  final double attendanceRate;
 
-  const OverviewTab({super.key, required this.students, required this.classes});
+  const OverviewTab({
+    super.key,
+    required this.username,
+    required this.students,
+    required this.classes,
+    required this.attendanceRate,
+  });
 
   double get averageScore {
     if (students.isEmpty) return 0.0;
@@ -20,8 +28,8 @@ class OverviewTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const HeaderWidget(
-          title: 'Chào buổi sáng, Linh',
+        HeaderWidget(
+          title: 'Chào buổi sáng, $username',
           subtitle: 'Đây là tổng quan hoạt động hôm nay.',
         ),
         const SizedBox(height: 16),
@@ -60,10 +68,10 @@ class OverviewTab extends StatelessWidget {
               iconBgColor: const Color(0xFFF3E8FF),
               iconColor: const Color(0xFF9333EA),
             ),
-            const StatCard(
+            StatCard(
               title: 'Chuyên cần',
-              value: '92.6%',
-              subtext: '+1,4% so với tuần trước',
+              value: '${attendanceRate.toStringAsFixed(1)}%',
+              subtext: 'Trên các buổi đã điểm danh',
               isPositive: true,
               icon: Icons.check_circle_outline,
               iconBgColor: Color(0xFFDCFCE7),
@@ -153,10 +161,7 @@ class HeaderWidget extends StatelessWidget {
         ),
         const CircleAvatar(
           backgroundColor: Color(0xFF2563EB),
-          child: Text(
-            'HL',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+          child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
         ),
       ],
     );
@@ -174,7 +179,7 @@ class CardContainer extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8),
         ],
       ),
       child: child,
