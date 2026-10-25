@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_role.dart';
+import 'diemdanh.dart';
 import 'tongquan.dart';
 import 'sinhvien.dart';
 import 'lophoc.dart';
@@ -18,12 +20,18 @@ class EduManageApp extends StatefulWidget {
 
 class _EduManageAppState extends State<EduManageApp> {
   final Map<String, String> _accounts = {'admin': 'admin123'};
+  final Map<String, AppRole> _roles = {'admin': AppRole.admin};
+  final Map<String, Map<String, bool>> _attendanceRecords = {};
   String? _currentUsername;
+  AppRole? _currentRole;
 
   bool _login(String username, String password) {
     final normalizedUsername = username.trim().toLowerCase();
     if (_accounts[normalizedUsername] != password) return false;
-    setState(() => _currentUsername = normalizedUsername);
+    setState(() {
+      _currentUsername = normalizedUsername;
+      _currentRole = _roles[normalizedUsername] ?? AppRole.teacher;
+    });
     return true;
   }
 
@@ -32,13 +40,42 @@ class _EduManageAppState extends State<EduManageApp> {
     if (_accounts.containsKey(normalizedUsername)) return false;
     setState(() {
       _accounts[normalizedUsername] = password;
+      _roles[normalizedUsername] = AppRole.teacher;
       _currentUsername = normalizedUsername;
+      _currentRole = AppRole.teacher;
     });
     return true;
   }
 
+  void _continueAsGuest() {
+    setState(() {
+      _currentUsername = 'Khách';
+      _currentRole = AppRole.guest;
+    });
+  }
+
   void _logout() {
-    setState(() => _currentUsername = null);
+    setState(() {
+      _currentUsername = null;
+      _currentRole = null;
+    });
+  }
+
+  void _updateRole(String username, AppRole role) {
+    if (username == 'admin' || !_roles.containsKey(username)) return;
+    setState(() => _roles[username] = role);
+  }
+
+  void _setAttendance(String dateKey, String studentId, bool? present) {
+    setState(() {
+      final dailyRecords = _attendanceRecords.putIfAbsent(dateKey, () => {});
+      if (present == null) {
+        dailyRecords.remove(studentId);
+        if (dailyRecords.isEmpty) _attendanceRecords.remove(dateKey);
+      } else {
+        dailyRecords[studentId] = present;
+      }
+    });
   }
 
   @override
@@ -56,9 +93,18 @@ class _EduManageAppState extends State<EduManageApp> {
         useMaterial3: true,
       ),
       home: _currentUsername == null
-          ? AuthScreen(onLogin: _login, onRegister: _register)
+          ? AuthScreen(
+              onLogin: _login,
+              onRegister: _register,
+              onContinueAsGuest: _continueAsGuest,
+            )
           : MainNavigationScreen(
               username: _currentUsername!,
+              role: _currentRole ?? AppRole.teacher,
+              userRoles: _roles,
+              onRoleChanged: _updateRole,
+              attendanceRecords: _attendanceRecords,
+              onSetAttendance: _setAttendance,
               onLogout: _logout,
             ),
     );
@@ -68,11 +114,13 @@ class _EduManageAppState extends State<EduManageApp> {
 class AuthScreen extends StatefulWidget {
   final bool Function(String username, String password) onLogin;
   final bool Function(String username, String password) onRegister;
+  final VoidCallback onContinueAsGuest;
 
   const AuthScreen({
     super.key,
     required this.onLogin,
     required this.onRegister,
+    required this.onContinueAsGuest,
   });
 
   @override
@@ -248,7 +296,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             },
                           ),
                         ],
-                        const SizedBox(height: 20                        ),
+                        const SizedBox(height: 20),
                         SizedBox(
                           height: 48,
                           child: ElevatedButton(
@@ -271,6 +319,12 @@ class _AuthScreenState extends State<AuthScreen> {
                                 : 'Chưa có tài khoản? Đăng ký',
                           ),
                         ),
+                        if (!_isRegistering)
+                          OutlinedButton.icon(
+                            onPressed: widget.onContinueAsGuest,
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: const Text('Vào xem với tư cách khách'),
+                          ),
                         if (!_isRegistering)
                           const Text(
                             'Tài khoản mặc định: admin / admin123',
@@ -295,11 +349,21 @@ class _AuthScreenState extends State<AuthScreen> {
 
 class MainNavigationScreen extends StatefulWidget {
   final String username;
+  final AppRole role;
+  final Map<String, AppRole> userRoles;
+  final void Function(String, AppRole) onRoleChanged;
+  final Map<String, Map<String, bool>> attendanceRecords;
+  final void Function(String, String, bool?) onSetAttendance;
   final VoidCallback onLogout;
 
   const MainNavigationScreen({
     super.key,
     required this.username,
+    required this.role,
+    required this.userRoles,
+    required this.onRoleChanged,
+    required this.attendanceRecords,
+    required this.onSetAttendance,
     required this.onLogout,
   });
 
@@ -376,8 +440,57 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() => _students.insert(0, student));
   }
 
+  void _editStudent(Student updatedStudent) {
+    setState(() {
+      final index = _students.indexWhere(
+        (student) => student.id == updatedStudent.id,
+      );
+      if (index != -1) _students[index] = updatedStudent;
+    });
+  }
+
+  void _deleteStudent(String studentId) {
+    setState(() {
+      _students.removeWhere((student) => student.id == studentId);
+      for (final dailyRecords in widget.attendanceRecords.values) {
+        dailyRecords.remove(studentId);
+      }
+      widget.attendanceRecords.removeWhere((_, records) => records.isEmpty);
+    });
+  }
+
   void _addClass(ClassInfo newClass) {
     setState(() => _classes.insert(0, newClass));
+  }
+
+  void _updateClass(ClassInfo updatedClass) {
+    setState(() {
+      final index = _classes.indexWhere(
+        (classInfo) => classInfo.id == updatedClass.id,
+      );
+      if (index == -1) return;
+      final oldTitle = _classes[index].title;
+      _classes[index] = updatedClass;
+      if (oldTitle != updatedClass.title) {
+        for (
+          var studentIndex = 0;
+          studentIndex < _students.length;
+          studentIndex++
+        ) {
+          if (_students[studentIndex].classCode == oldTitle) {
+            _students[studentIndex] = _students[studentIndex].copyWith(
+              classCode: updatedClass.title,
+            );
+          }
+        }
+      }
+    });
+  }
+
+  void _deleteClass(String classId) {
+    setState(
+      () => _classes.removeWhere((classInfo) => classInfo.id == classId),
+    );
   }
 
   void _updateStudentScore(String id, double newScore) {
@@ -397,18 +510,47 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           s.email.toLowerCase().contains(query) ||
           s.classCode.toLowerCase().contains(query);
     }).toList();
+    final isAdmin = widget.role == AppRole.admin;
+    final isGuest = widget.role == AppRole.guest;
 
     final List<Widget> screens = [
-      OverviewTab(students: _students, classes: _classes),
+      OverviewTab(
+        username: widget.username,
+        students: _students,
+        classes: _classes,
+        attendanceRate: _overallAttendanceRate,
+      ),
       StudentsTab(
         students: filteredStudents,
         onAddStudent: _addStudent,
+        onEditStudent: _editStudent,
+        onDeleteStudent: _deleteStudent,
         onUpdateScore: _updateStudentScore,
         onSearchChanged: (val) => setState(() => _searchQuery = val),
+        classCodes: _classes.map((classInfo) => classInfo.title).toList(),
+        canManage: isAdmin,
+        canEditScores: !isGuest,
       ),
-      ClassesTab(classes: _classes, students: _students, onAddClass: _addClass),
+      ClassesTab(
+        classes: _classes,
+        students: _students,
+        onAddClass: _addClass,
+        onUpdateClass: _updateClass,
+        onDeleteClass: _deleteClass,
+        canManage: isAdmin,
+      ),
+      AttendanceTab(
+        students: _students,
+        classes: _classes,
+        records: widget.attendanceRecords,
+        onSetAttendance: widget.onSetAttendance,
+        canEdit: !isGuest,
+      ),
       ProfileTab(
         username: widget.username,
+        role: widget.role,
+        userRoles: widget.userRoles,
+        onRoleChanged: widget.onRoleChanged,
         onLogout: widget.onLogout,
       ),
     ];
@@ -422,7 +564,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -455,6 +597,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               label: 'Lớp học',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.fact_check_outlined),
+              label: 'Điểm danh',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.person_outline_rounded),
               label: 'Hồ sơ',
             ),
@@ -462,5 +608,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
       ),
     );
+  }
+
+  double get _overallAttendanceRate {
+    var present = 0;
+    var marked = 0;
+    for (final record in widget.attendanceRecords.values) {
+      for (final attendance in record.values) {
+        marked++;
+        if (attendance) present++;
+      }
+    }
+    return marked == 0 ? 0 : present * 100 / marked;
   }
 }
