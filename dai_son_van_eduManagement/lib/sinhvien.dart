@@ -21,15 +21,22 @@ class Student {
     this.isInactive = false,
   });
 
-  Student copyWith({double? score}) {
+  Student copyWith({
+    String? name,
+    String? email,
+    String? classCode,
+    double? score,
+    String? status,
+    bool? isInactive,
+  }) {
     return Student(
       id: id,
-      name: name,
-      email: email,
-      classCode: classCode,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      classCode: classCode ?? this.classCode,
       score: score ?? this.score,
-      status: status,
-      isInactive: isInactive,
+      status: status ?? this.status,
+      isInactive: isInactive ?? this.isInactive,
     );
   }
 
@@ -48,15 +55,25 @@ class Student {
 class StudentsTab extends StatefulWidget {
   final List<Student> students;
   final Function(Student) onAddStudent;
+  final Function(Student) onEditStudent;
+  final Function(String) onDeleteStudent;
   final Function(String, double) onUpdateScore;
   final Function(String) onSearchChanged;
+  final List<String> classCodes;
+  final bool canManage;
+  final bool canEditScores;
 
   const StudentsTab({
     super.key,
     required this.students,
     required this.onAddStudent,
+    required this.onEditStudent,
+    required this.onDeleteStudent,
     required this.onUpdateScore,
     required this.onSearchChanged,
+    required this.classCodes,
+    required this.canManage,
+    this.canEditScores = true,
   });
 
   @override
@@ -65,78 +82,212 @@ class StudentsTab extends StatefulWidget {
 
 class _StudentsTabState extends State<StudentsTab> {
   String selectedFilter = 'Tất cả';
+  String selectedClass = 'Tất cả lớp';
+
+  @override
+  void didUpdateWidget(covariant StudentsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (selectedClass != 'Tất cả lớp' &&
+        !widget.classCodes.contains(selectedClass)) {
+      selectedClass = 'Tất cả lớp';
+    }
+  }
 
   void _showAddStudentDialog(BuildContext context) {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
-    final classController = TextEditingController();
+    var selectedClassCode = widget.classCodes.isEmpty
+        ? ''
+        : widget.classCodes.first;
+    var isActive = true;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Thêm sinh viên mới',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Họ và tên',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: classController,
-                decoration: const InputDecoration(
-                  labelText: 'Lớp học',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+          title: const Text('Thêm sinh viên mới'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Họ và tên'),
+                ),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                if (widget.classCodes.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedClassCode,
+                    decoration: const InputDecoration(labelText: 'Lớp học'),
+                    items: widget.classCodes
+                        .map(
+                          (code) =>
+                              DropdownMenuItem(value: code, child: Text(code)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => selectedClassCode = value);
+                      }
+                    },
+                  ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Đang học'),
+                  value: isActive,
+                  onChanged: (value) => setDialogState(() => isActive = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng nhập họ tên.')),
+                  );
+                  return;
+                }
+                widget.onAddStudent(
+                  Student(
+                    id: DateTime.now().microsecondsSinceEpoch.toString(),
+                    name: name,
+                    email: emailController.text.trim(),
+                    classCode: selectedClassCode,
+                    score: 0,
+                    status: isActive ? 'Đang học' : 'Tạm nghỉ',
+                    isInactive: !isActive,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Thêm'),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _showEditStudentDialog(BuildContext context, Student student) {
+    final nameController = TextEditingController(text: student.name);
+    final emailController = TextEditingController(text: student.email);
+    var selectedClassCode = widget.classCodes.contains(student.classCode)
+        ? student.classCode
+        : (widget.classCodes.isEmpty ? '' : widget.classCodes.first);
+    var isActive = !student.isInactive;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Chỉnh sửa sinh viên'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Họ và tên'),
+                ),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                if (widget.classCodes.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedClassCode,
+                    decoration: const InputDecoration(labelText: 'Lớp học'),
+                    items: widget.classCodes
+                        .map(
+                          (code) =>
+                              DropdownMenuItem(value: code, child: Text(code)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => selectedClassCode = value);
+                      }
+                    },
+                  ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Đang học'),
+                  value: isActive,
+                  onChanged: (value) => setDialogState(() => isActive = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng nhập họ tên.')),
+                  );
+                  return;
+                }
+                widget.onEditStudent(
+                  student.copyWith(
+                    name: name,
+                    email: emailController.text.trim(),
+                    classCode: selectedClassCode,
+                    status: isActive ? 'Đang học' : 'Tạm nghỉ',
+                    isInactive: !isActive,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteStudent(
+    BuildContext context,
+    Student student,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa sinh viên?'),
+        content: Text('Bạn có chắc muốn xóa ${student.name}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Hủy'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-            ),
-            onPressed: () {
-              if (nameController.text.isNotEmpty) {
-                final newStudent = Student(
-                  id: DateTime.now().toString(),
-                  name: nameController.text,
-                  email: emailController.text,
-                  classCode: classController.text,
-                  score: 0.0,
-                  status: 'Đang học',
-                );
-                widget.onAddStudent(newStudent);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Thêm', style: TextStyle(color: Colors.white)),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
+    if (confirmed == true) widget.onDeleteStudent(student.id);
   }
 
   void _showEditScoreDialog(BuildContext context, Student student) {
@@ -186,9 +337,14 @@ class _StudentsTabState extends State<StudentsTab> {
   @override
   Widget build(BuildContext context) {
     final displayList = widget.students.where((s) {
-      if (selectedFilter == 'Đang học') return !s.isInactive;
-      if (selectedFilter == 'Tạm nghỉ') return s.isInactive;
-      return true;
+      final statusMatches = switch (selectedFilter) {
+        'Đang học' => !s.isInactive,
+        'Tạm nghỉ' => s.isInactive,
+        _ => true,
+      };
+      final classMatches =
+          selectedClass == 'Tất cả lớp' || s.classCode == selectedClass;
+      return statusMatches && classMatches;
     }).toList();
 
     return ListView(
@@ -221,21 +377,43 @@ class _StudentsTabState extends State<StudentsTab> {
               ),
             ),
             const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: () => _showAddStudentDialog(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                padding: const EdgeInsets.all(14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            if (widget.canManage)
+              ElevatedButton(
+                onPressed: () => _showAddStudentDialog(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  padding: const EdgeInsets.all(14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                child: const Icon(Icons.add, color: Colors.white),
               ),
-              child: const Icon(Icons.add, color: Colors.white),
-            ),
           ],
         ),
         const SizedBox(height: 12),
-        // Filter Chips UI
+        DropdownButtonFormField<String>(
+          initialValue: selectedClass,
+          decoration: const InputDecoration(
+            labelText: 'Lọc theo lớp',
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem(
+              value: 'Tất cả lớp',
+              child: Text('Tất cả lớp'),
+            ),
+            ...widget.classCodes.map(
+              (code) => DropdownMenuItem(value: code, child: Text(code)),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) setState(() => selectedClass = value);
+          },
+        ),
+        const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -272,7 +450,31 @@ class _StudentsTabState extends State<StudentsTab> {
               children: [
                 StudentListItem(
                   student: s,
-                  onTap: () => _showEditScoreDialog(context, s),
+                  onTap: widget.canEditScores
+                      ? () => _showEditScoreDialog(context, s)
+                      : null,
+                  trailing: widget.canManage
+                      ? PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (action) {
+                            if (action == 'edit') {
+                              _showEditStudentDialog(context, s);
+                            } else if (action == 'delete') {
+                              _confirmDeleteStudent(context, s);
+                            }
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Sửa thông tin'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Xóa sinh viên'),
+                            ),
+                          ],
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 10),
               ],
@@ -286,7 +488,13 @@ class _StudentsTabState extends State<StudentsTab> {
 class StudentListItem extends StatelessWidget {
   final Student student;
   final VoidCallback? onTap;
-  const StudentListItem({super.key, required this.student, this.onTap});
+  final Widget? trailing;
+  const StudentListItem({
+    super.key,
+    required this.student,
+    this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -374,11 +582,12 @@ class StudentListItem extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'Chỉnh sửa',
+                  'Điểm',
                   style: TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               ],
             ),
+            ?trailing,
           ],
         ),
       ),
