@@ -25,58 +25,99 @@ class ClassInfo {
     required this.progress,
     required this.tag,
   });
+
+  ClassInfo copyWith({
+    String? title,
+    String? subtitle,
+    String? teacherName,
+    String? teacherAvatar,
+    int? studentCount,
+    String? room,
+  }) {
+    return ClassInfo(
+      id: id,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      teacherName: teacherName ?? this.teacherName,
+      teacherAvatar: teacherAvatar ?? this.teacherAvatar,
+      studentCount: studentCount ?? this.studentCount,
+      room: room ?? this.room,
+      progress: progress,
+      tag: tag,
+    );
+  }
 }
 
-class ClassesTab extends StatelessWidget {
+class ClassesTab extends StatefulWidget {
   final List<ClassInfo> classes;
   final List<Student> students;
   final Function(ClassInfo) onAddClass;
+  final Function(ClassInfo) onUpdateClass;
+  final Function(String) onDeleteClass;
+  final bool canManage;
 
   const ClassesTab({
     super.key,
     required this.classes,
     required this.students,
     required this.onAddClass,
+    required this.onUpdateClass,
+    required this.onDeleteClass,
+    required this.canManage,
   });
 
-  void _showAddClassDialog(BuildContext context) {
-    final titleController = TextEditingController();
-    final subtitleController = TextEditingController();
-    final teacherController = TextEditingController();
+  @override
+  State<ClassesTab> createState() => _ClassesTabState();
+}
+
+class _ClassesTabState extends State<ClassesTab> {
+  String _searchQuery = '';
+
+  void _showClassDialog(BuildContext context, {ClassInfo? classInfo}) {
+    final titleController = TextEditingController(text: classInfo?.title);
+    final subtitleController = TextEditingController(text: classInfo?.subtitle);
+    final teacherController = TextEditingController(
+      text: classInfo?.teacherName,
+    );
+    final roomController = TextEditingController(
+      text: classInfo?.room ?? 'P. A101',
+    );
+    final formKey = GlobalKey<FormState>();
+    final isEditing = classInfo != null;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Tạo lớp học mới'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên lớp (VD: CNTT K68-A)',
-                  border: OutlineInputBorder(),
+        title: Text(isEditing ? 'Chỉnh sửa lớp học' : 'Tạo lớp học mới'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Tên lớp'),
+                  validator: _requiredValidator,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: subtitleController,
-                decoration: const InputDecoration(
-                  labelText: 'Môn học',
-                  border: OutlineInputBorder(),
+                TextFormField(
+                  controller: subtitleController,
+                  decoration: const InputDecoration(labelText: 'Môn học'),
+                  validator: _requiredValidator,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: teacherController,
-                decoration: const InputDecoration(
-                  labelText: 'Giảng viên',
-                  border: OutlineInputBorder(),
+                TextFormField(
+                  controller: teacherController,
+                  decoration: const InputDecoration(labelText: 'Giảng viên'),
+                  validator: _requiredValidator,
                 ),
-              ),
-            ],
+                TextFormField(
+                  controller: roomController,
+                  decoration: const InputDecoration(labelText: 'Phòng học'),
+                  validator: _requiredValidator,
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -89,33 +130,105 @@ class ClassesTab extends StatelessWidget {
               backgroundColor: const Color(0xFF2563EB),
             ),
             onPressed: () {
-              if (titleController.text.isNotEmpty) {
-                final newClass = ClassInfo(
-                  id: DateTime.now().toString(),
-                  title: titleController.text,
-                  subtitle: subtitleController.text,
-                  teacherName: teacherController.text,
-                  teacherAvatar: teacherController.text.isNotEmpty
-                      ? teacherController.text.substring(0, 1).toUpperCase()
-                      : '?',
-                  studentCount: 0,
-                  room: 'P. A101',
-                  progress: 0.1,
-                  tag: 'Mới',
+              if (!formKey.currentState!.validate()) return;
+              final title = titleController.text.trim();
+              final teacher = teacherController.text.trim();
+              final duplicateTitle = widget.classes.any(
+                (existingClass) =>
+                    existingClass.id != classInfo?.id &&
+                    existingClass.title.toLowerCase() == title.toLowerCase(),
+              );
+              if (duplicateTitle) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tên lớp này đã được sử dụng.')),
                 );
-                onAddClass(newClass);
-                Navigator.pop(context);
+                return;
               }
+              if (isEditing) {
+                widget.onUpdateClass(
+                  classInfo.copyWith(
+                    title: title,
+                    subtitle: subtitleController.text.trim(),
+                    teacherName: teacher,
+                    teacherAvatar: teacher[0].toUpperCase(),
+                    room: roomController.text.trim(),
+                  ),
+                );
+              } else {
+                widget.onAddClass(
+                  ClassInfo(
+                    id: DateTime.now().microsecondsSinceEpoch.toString(),
+                    title: title,
+                    subtitle: subtitleController.text.trim(),
+                    teacherName: teacher,
+                    teacherAvatar: teacher[0].toUpperCase(),
+                    studentCount: 0,
+                    room: roomController.text.trim(),
+                    progress: 0,
+                    tag: 'Mới',
+                  ),
+                );
+              }
+              Navigator.pop(context);
             },
-            child: const Text('Tạo lớp', style: TextStyle(color: Colors.white)),
+            child: Text(isEditing ? 'Lưu' : 'Tạo lớp'),
           ),
         ],
       ),
     );
   }
 
+  String? _requiredValidator(String? value) =>
+      value == null || value.trim().isEmpty ? 'Không được để trống.' : null;
+
+  Future<void> _confirmDeleteClass(
+    BuildContext context,
+    ClassInfo classInfo,
+  ) async {
+    final enrolledCount = widget.students
+        .where((student) => student.classCode == classInfo.title)
+        .length;
+    if (enrolledCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không thể xóa lớp còn $enrolledCount sinh viên. '
+            'Hãy chuyển sinh viên sang lớp khác trước.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa lớp học?'),
+        content: Text('Bạn có chắc muốn xóa lớp ${classInfo.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) widget.onDeleteClass(classInfo.id);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final query = _searchQuery.trim().toLowerCase();
+    final filteredClasses = widget.classes.where((classInfo) {
+      return classInfo.title.toLowerCase().contains(query) ||
+          classInfo.subtitle.toLowerCase().contains(query) ||
+          classInfo.teacherName.toLowerCase().contains(query);
+    }).toList();
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
@@ -124,45 +237,79 @@ class ClassesTab extends StatelessWidget {
           subtitle: 'Theo dõi tiến độ giảng dạy & danh sách lớp.',
         ),
         const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => _showAddClassDialog(context),
-          icon: const Icon(Icons.add_task_rounded, color: Colors.white),
-          label: const Text(
-            'Tạo lớp học mới',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2563EB),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
+        TextField(
+          onChanged: (value) => setState(() => _searchQuery = value),
+          decoration: InputDecoration(
+            hintText: 'Tìm lớp, môn học hoặc giảng viên...',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
           ),
         ),
         const SizedBox(height: 16),
-        ...classes.map(
-          (c) => Column(
-            children: [
-              ClassCardWidget(
-                classInfo: c,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ClassDetailScreen(
-                        classInfo: c,
-                        students: students
-                            .where((s) => s.classCode == c.title)
-                            .toList(),
-                      ),
-                    ),
-                  );
-                },
+        if (widget.canManage)
+          ElevatedButton.icon(
+            onPressed: () => _showClassDialog(context),
+            icon: const Icon(Icons.add_task_rounded, color: Colors.white),
+            label: const Text(
+              'Tạo lớp học mới',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-            ],
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
-        ),
+        const SizedBox(height: 16),
+        if (filteredClasses.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: Text('Không tìm thấy lớp phù hợp.')),
+          )
+        else
+          ...filteredClasses.map(
+            (c) => Column(
+              children: [
+                ClassCardWidget(
+                  classInfo: c.copyWith(
+                    studentCount: widget.students
+                        .where((student) => student.classCode == c.title)
+                        .length,
+                  ),
+                  onEdit: widget.canManage
+                      ? () => _showClassDialog(context, classInfo: c)
+                      : null,
+                  onDelete: widget.canManage
+                      ? () => _confirmDeleteClass(context, c)
+                      : null,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ClassDetailScreen(
+                          classInfo: c,
+                          students: widget.students
+                              .where((s) => s.classCode == c.title)
+                              .toList(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -259,7 +406,15 @@ class ClassDetailScreen extends StatelessWidget {
 class ClassCardWidget extends StatelessWidget {
   final ClassInfo classInfo;
   final VoidCallback? onTap;
-  const ClassCardWidget({super.key, required this.classInfo, this.onTap});
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  const ClassCardWidget({
+    super.key,
+    required this.classInfo,
+    this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -306,6 +461,18 @@ class ClassCardWidget extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onEdit != null || onDelete != null)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (action) {
+                      if (action == 'edit') onEdit?.call();
+                      if (action == 'delete') onDelete?.call();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Sửa lớp')),
+                      PopupMenuItem(value: 'delete', child: Text('Xóa lớp')),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 14),
