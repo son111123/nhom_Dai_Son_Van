@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 
+import 'app_role.dart';
+
 class ProfileTab extends StatelessWidget {
   final String username;
+  final AppRole role;
+  final Map<String, AppRole> userRoles;
+  final void Function(String username, AppRole role) onRoleChanged;
   final VoidCallback onLogout;
 
   const ProfileTab({
     super.key,
     required this.username,
+    required this.role,
+    required this.userRoles,
+    required this.onRoleChanged,
     required this.onLogout,
   });
 
@@ -28,7 +36,7 @@ class ProfileTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -68,7 +76,7 @@ class ProfileTab extends StatelessWidget {
                     SizedBox(height: 6),
                     Chip(
                       label: Text(
-                        'Tài khoản người dùng',
+                        role.label,
                         style: TextStyle(
                           fontSize: 11,
                           color: Color(0xFF2563EB),
@@ -113,6 +121,47 @@ class ProfileTab extends StatelessWidget {
             onTap: () {},
           ),
         ]),
+        if (role == AppRole.admin) ...[
+          const SizedBox(height: 20),
+          const Text(
+            'Phân quyền tài khoản',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildSettingsGroup(
+            userRoles.entries.map((entry) {
+              return ListTile(
+                leading: Icon(
+                  entry.value == AppRole.admin
+                      ? Icons.admin_panel_settings_outlined
+                      : Icons.school_outlined,
+                  color: const Color(0xFF2563EB),
+                ),
+                title: Text(entry.key),
+                subtitle: Text(entry.value.label),
+                trailing: entry.key == 'admin'
+                    ? const Text('Chủ tài khoản')
+                    : PopupMenuButton<AppRole>(
+                        tooltip: 'Đổi quyền',
+                        onSelected: (newRole) =>
+                            onRoleChanged(entry.key, newRole),
+                        itemBuilder: (context) => AppRole.values
+                            .map(
+                              (option) => PopupMenuItem(
+                                value: option,
+                                child: Text(option.label),
+                              ),
+                            )
+                            .toList(),
+                      ),
+              );
+            }).toList(),
+          ),
+        ],
         const SizedBox(height: 20),
         // Nhóm Tùy chỉnh ứng dụng
         const Text(
@@ -201,7 +250,7 @@ class _ProfileMenuItem extends StatelessWidget {
         leading: Icon(icon, color: const Color(0xFF475569), size: 22),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500), 
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         trailing:
             trailing ??
