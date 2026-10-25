@@ -1,531 +1,624 @@
 import 'package:flutter/material.dart';
 
+import 'app_role.dart';
+import 'diemdanh.dart';
 import 'tongquan.dart';
 import 'sinhvien.dart';
+import 'lophoc.dart';
+import 'hoso.dart';
 
-class ClassInfo {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String teacherName;
-  final String teacherAvatar;
-  final int studentCount;
-  final String room;
-  final double progress;
-  final String tag;
+void main() {
+  runApp(const EduManageApp());
+}
 
-  ClassInfo({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.teacherName,
-    required this.teacherAvatar,
-    required this.studentCount,
-    required this.room,
-    required this.progress,
-    required this.tag,
-  });
+class EduManageApp extends StatefulWidget {
+  const EduManageApp({super.key});
 
-  ClassInfo copyWith({
-    String? title,
-    String? subtitle,
-    String? teacherName,
-    String? teacherAvatar,
-    int? studentCount,
-    String? room,
-  }) {
-    return ClassInfo(
-      id: id,
-      title: title ?? this.title,
-      subtitle: subtitle ?? this.subtitle,
-      teacherName: teacherName ?? this.teacherName,
-      teacherAvatar: teacherAvatar ?? this.teacherAvatar,
-      studentCount: studentCount ?? this.studentCount,
-      room: room ?? this.room,
-      progress: progress,
-      tag: tag,
+  @override
+  State<EduManageApp> createState() => _EduManageAppState();
+}
+
+class _EduManageAppState extends State<EduManageApp> {
+  final Map<String, String> _accounts = {'admin': 'admin123'};
+  final Map<String, AppRole> _roles = {'admin': AppRole.admin};
+  final Map<String, Map<String, bool>> _attendanceRecords = {};
+  String? _currentUsername;
+  AppRole? _currentRole;
+
+  bool _login(String username, String password) {
+    final normalizedUsername = username.trim().toLowerCase();
+    if (_accounts[normalizedUsername] != password) return false;
+    setState(() {
+      _currentUsername = normalizedUsername;
+      _currentRole = _roles[normalizedUsername] ?? AppRole.teacher;
+    });
+    return true;
+  }
+
+  bool _register(String username, String password) {
+    final normalizedUsername = username.trim().toLowerCase();
+    if (_accounts.containsKey(normalizedUsername)) return false;
+    setState(() {
+      _accounts[normalizedUsername] = password;
+      _roles[normalizedUsername] = AppRole.teacher;
+      _currentUsername = normalizedUsername;
+      _currentRole = AppRole.teacher;
+    });
+    return true;
+  }
+
+  void _continueAsGuest() {
+    setState(() {
+      _currentUsername = 'Khách';
+      _currentRole = AppRole.guest;
+    });
+  }
+
+  void _logout() {
+    setState(() {
+      _currentUsername = null;
+      _currentRole = null;
+    });
+  }
+
+  void _updateRole(String username, AppRole role) {
+    if (username == 'admin' || !_roles.containsKey(username)) return;
+    setState(() => _roles[username] = role);
+  }
+
+  void _setAttendance(String dateKey, String studentId, bool? present) {
+    setState(() {
+      final dailyRecords = _attendanceRecords.putIfAbsent(dateKey, () => {});
+      if (present == null) {
+        dailyRecords.remove(studentId);
+        if (dailyRecords.isEmpty) _attendanceRecords.remove(dateKey);
+      } else {
+        dailyRecords[studentId] = present;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'EduManager',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        fontFamily: 'Roboto',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2563EB),
+          primary: const Color(0xFF2563EB),
+        ),
+        useMaterial3: true,
+      ),
+      home: _currentUsername == null
+          ? AuthScreen(
+              onLogin: _login,
+              onRegister: _register,
+              onContinueAsGuest: _continueAsGuest,
+            )
+          : MainNavigationScreen(
+              username: _currentUsername!,
+              role: _currentRole ?? AppRole.teacher,
+              userRoles: _roles,
+              onRoleChanged: _updateRole,
+              attendanceRecords: _attendanceRecords,
+              onSetAttendance: _setAttendance,
+              onLogout: _logout,
+            ),
     );
   }
 }
 
-class ClassesTab extends StatefulWidget {
-  final List<ClassInfo> classes;
-  final List<Student> students;
-  final Function(ClassInfo) onAddClass;
-  final Function(ClassInfo) onUpdateClass;
-  final Function(String) onDeleteClass;
-  final bool canManage;
+class AuthScreen extends StatefulWidget {
+  final bool Function(String username, String password) onLogin;
+  final bool Function(String username, String password) onRegister;
+  final VoidCallback onContinueAsGuest;
 
-  const ClassesTab({
+  const AuthScreen({
     super.key,
-    required this.classes,
-    required this.students,
-    required this.onAddClass,
-    required this.onUpdateClass,
-    required this.onDeleteClass,
-    required this.canManage,
+    required this.onLogin,
+    required this.onRegister,
+    required this.onContinueAsGuest,
   });
 
   @override
-  State<ClassesTab> createState() => _ClassesTabState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _ClassesTabState extends State<ClassesTab> {
-  String _searchQuery = '';
+class _AuthScreenState extends State<AuthScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isRegistering = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmation = true;
 
-  void _showClassDialog(BuildContext context, {ClassInfo? classInfo}) {
-    final titleController = TextEditingController(text: classInfo?.title);
-    final subtitleController = TextEditingController(text: classInfo?.subtitle);
-    final teacherController = TextEditingController(
-      text: classInfo?.teacherName,
-    );
-    final roomController = TextEditingController(
-      text: classInfo?.room ?? 'P. A101',
-    );
-    final formKey = GlobalKey<FormState>();
-    final isEditing = classInfo != null;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isEditing ? 'Chỉnh sửa lớp học' : 'Tạo lớp học mới'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Tên lớp'),
-                  validator: _requiredValidator,
-                ),
-                TextFormField(
-                  controller: subtitleController,
-                  decoration: const InputDecoration(labelText: 'Môn học'),
-                  validator: _requiredValidator,
-                ),
-                TextFormField(
-                  controller: teacherController,
-                  decoration: const InputDecoration(labelText: 'Giảng viên'),
-                  validator: _requiredValidator,
-                ),
-                TextFormField(
-                  controller: roomController,
-                  decoration: const InputDecoration(labelText: 'Phòng học'),
-                  validator: _requiredValidator,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-            ),
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              final title = titleController.text.trim();
-              final teacher = teacherController.text.trim();
-              final duplicateTitle = widget.classes.any(
-                (existingClass) =>
-                    existingClass.id != classInfo?.id &&
-                    existingClass.title.toLowerCase() == title.toLowerCase(),
-              );
-              if (duplicateTitle) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tên lớp này đã được sử dụng.')),
-                );
-                return;
-              }
-              if (isEditing) {
-                widget.onUpdateClass(
-                  classInfo.copyWith(
-                    title: title,
-                    subtitle: subtitleController.text.trim(),
-                    teacherName: teacher,
-                    teacherAvatar: teacher[0].toUpperCase(),
-                    room: roomController.text.trim(),
-                  ),
-                );
-              } else {
-                widget.onAddClass(
-                  ClassInfo(
-                    id: DateTime.now().microsecondsSinceEpoch.toString(),
-                    title: title,
-                    subtitle: subtitleController.text.trim(),
-                    teacherName: teacher,
-                    teacherAvatar: teacher[0].toUpperCase(),
-                    studentCount: 0,
-                    room: roomController.text.trim(),
-                    progress: 0,
-                    tag: 'Mới',
-                  ),
-                );
-              }
-              Navigator.pop(context);
-            },
-            child: Text(isEditing ? 'Lưu' : 'Tạo lớp'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
-  String? _requiredValidator(String? value) =>
-      value == null || value.trim().isEmpty ? 'Không được để trống.' : null;
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
 
-  Future<void> _confirmDeleteClass(
-    BuildContext context,
-    ClassInfo classInfo,
-  ) async {
-    final enrolledCount = widget.students
-        .where((student) => student.classCode == classInfo.title)
-        .length;
-    if (enrolledCount > 0) {
+    final username = _usernameController.text.trim().toLowerCase();
+    final password = _passwordController.text;
+    final succeeded = _isRegistering
+        ? widget.onRegister(username, password)
+        : widget.onLogin(username, password);
+
+    if (!succeeded) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Không thể xóa lớp còn $enrolledCount sinh viên. '
-            'Hãy chuyển sinh viên sang lớp khác trước.',
+            _isRegistering
+                ? 'Tên đăng nhập đã được sử dụng.'
+                : 'Tên đăng nhập hoặc mật khẩu không đúng.',
           ),
         ),
       );
-      return;
     }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa lớp học?'),
-        content: Text('Bạn có chắc muốn xóa lớp ${classInfo.title}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) widget.onDeleteClass(classInfo.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final query = _searchQuery.trim().toLowerCase();
-    final filteredClasses = widget.classes.where((classInfo) {
-      return classInfo.title.toLowerCase().contains(query) ||
-          classInfo.subtitle.toLowerCase().contains(query) ||
-          classInfo.teacherName.toLowerCase().contains(query);
-    }).toList();
+    final title = _isRegistering ? 'Đăng ký' : 'Đăng nhập';
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        const HeaderWidget(
-          title: 'Danh sách lớp học',
-          subtitle: 'Theo dõi tiến độ giảng dạy & danh sách lớp.',
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          onChanged: (value) => setState(() => _searchQuery = value),
-          decoration: InputDecoration(
-            hintText: 'Tìm lớp, môn học hoặc giảng viên...',
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (widget.canManage)
-          ElevatedButton.icon(
-            onPressed: () => _showClassDialog(context),
-            icon: const Icon(Icons.add_task_rounded, color: Colors.white),
-            label: const Text(
-              'Tạo lớp học mới',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        const SizedBox(height: 16),
-        if (filteredClasses.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: Text('Không tìm thấy lớp phù hợp.')),
-          )
-        else
-          ...filteredClasses.map(
-            (c) => Column(
-              children: [
-                ClassCardWidget(
-                  classInfo: c.copyWith(
-                    studentCount: widget.students
-                        .where((student) => student.classCode == c.title)
-                        .length,
-                  ),
-                  onEdit: widget.canManage
-                      ? () => _showClassDialog(context, classInfo: c)
-                      : null,
-                  onDelete: widget.canManage
-                      ? () => _confirmDeleteClass(context, c)
-                      : null,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ClassDetailScreen(
-                          classInfo: c,
-                          students: widget.students
-                              .where((s) => s.classCode == c.title)
-                              .toList(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class ClassDetailScreen extends StatelessWidget {
-  final ClassInfo classInfo;
-  final List<Student> students;
-
-  const ClassDetailScreen({
-    super.key,
-    required this.classInfo,
-    required this.students,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(classInfo.title),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(
-          color: Colors.black,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.meeting_room_outlined,
-                    color: Color(0xFF2563EB),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Icon(
+                          Icons.school_rounded,
+                          size: 48,
+                          color: Color(0xFF2563EB),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _isRegistering
+                              ? 'Tạo tài khoản để sử dụng EduManager.'
+                              : 'Đăng nhập để tiếp tục.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 24),
+                        TextFormField(
+                          controller: _usernameController,
+                          autocorrect: false,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Tên đăng nhập',
+                            prefixIcon: Icon(Icons.person_outline),
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            final username = value?.trim() ?? '';
+                            if (username.isEmpty) {
+                              return 'Vui lòng nhập tên đăng nhập.';
+                            }
+                            if (username.length < 3) {
+                              return 'Tên đăng nhập cần ít nhất 3 ký tự.';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          textInputAction: _isRegistering
+                              ? TextInputAction.next
+                              : TextInputAction.done,
+                          onFieldSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'Mật khẩu',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Vui lòng nhập mật khẩu.';
+                            }
+                            if (_isRegistering && value.length < 6) {
+                              return 'Mật khẩu cần ít nhất 6 ký tự.';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (_isRegistering) ...[
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _confirmPasswordController,
+                            obscureText: _obscureConfirmation,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(),
+                            decoration: InputDecoration(
+                              labelText: 'Nhập lại mật khẩu',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                onPressed: () => setState(
+                                  () => _obscureConfirmation =
+                                      !_obscureConfirmation,
+                                ),
+                                icon: Icon(
+                                  _obscureConfirmation
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value != _passwordController.text) {
+                                return 'Mật khẩu nhập lại không khớp.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text(title),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _isRegistering = !_isRegistering;
+                            _formKey.currentState?.reset();
+                          }),
+                          child: Text(
+                            _isRegistering
+                                ? 'Đã có tài khoản? Đăng nhập'
+                                : 'Chưa có tài khoản? Đăng ký',
+                          ),
+                        ),
+                        if (!_isRegistering)
+                          OutlinedButton.icon(
+                            onPressed: widget.onContinueAsGuest,
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: const Text('Vào xem với tư cách khách'),
+                          ),
+                        if (!_isRegistering)
+                          const Text(
+                            'Tài khoản mặc định: admin / admin123',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Môn: ${classInfo.subtitle}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Giảng viên: ${classInfo.teacherName} • Phòng: ${classInfo.room}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: students.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Chưa có sinh viên nào trong lớp này.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: students.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10.0),
-                        child: StudentListItem(student: students[index]),
-                      );
-                    },
-                  ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class ClassCardWidget extends StatelessWidget {
-  final ClassInfo classInfo;
-  final VoidCallback? onTap;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-  const ClassCardWidget({
+class MainNavigationScreen extends StatefulWidget {
+  final String username;
+  final AppRole role;
+  final Map<String, AppRole> userRoles;
+  final void Function(String, AppRole) onRoleChanged;
+  final Map<String, Map<String, bool>> attendanceRecords;
+  final void Function(String, String, bool?) onSetAttendance;
+  final VoidCallback onLogout;
+
+  const MainNavigationScreen({
     super.key,
-    required this.classInfo,
-    this.onTap,
-    this.onEdit,
-    this.onDelete,
+    required this.username,
+    required this.role,
+    required this.userRoles,
+    required this.onRoleChanged,
+    required this.attendanceRecords,
+    required this.onSetAttendance,
+    required this.onLogout,
   });
 
   @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+  String _searchQuery = '';
+
+  final List<Student> _students = [
+    Student(
+      id: '1',
+      name: 'Nguyễn Minh Anh',
+      email: 'minhanh@univ.edu.vn',
+      classCode: 'CNTT K68-A',
+      score: 8.7,
+      status: 'Đang học',
+    ),
+    Student(
+      id: '2',
+      name: 'Trần Gia Huy',
+      email: 'giahuy@univ.edu.vn',
+      classCode: 'Kinh tế K67-B',
+      score: 8.2,
+      status: 'Đang học',
+    ),
+    Student(
+      id: '3',
+      name: 'Lê Hoàng Nam',
+      email: 'hoangnam@univ.edu.vn',
+      classCode: 'CNTT K68-A',
+      score: 7.9,
+      status: 'Đang học',
+    ),
+    Student(
+      id: '4',
+      name: 'Phạm Thu Hà',
+      email: 'thuha@univ.edu.vn',
+      classCode: 'Marketing K66',
+      score: 8.5,
+      status: 'Tạm nghỉ',
+      isInactive: true,
+    ),
+  ];
+
+  final List<ClassInfo> _classes = [
+    ClassInfo(
+      id: '1',
+      title: 'CNTT K68-A',
+      subtitle: 'Lập trình ứng dụng',
+      teacherName: 'TS. Nguyễn Văn Long',
+      teacherAvatar: 'VL',
+      studentCount: 42,
+      room: 'A305',
+      progress: 0.68,
+      tag: 'CNTT-68A',
+    ),
+    ClassInfo(
+      id: '2',
+      title: 'Kinh tế K67-B',
+      subtitle: 'Kinh tế vi mô',
+      teacherName: 'ThS. Lê Thu Trang',
+      teacherAvatar: 'TT',
+      studentCount: 38,
+      room: 'B201',
+      progress: 0.54,
+      tag: 'KT-67B',
+    ),
+  ];
+
+  void _addStudent(Student student) {
+    setState(() => _students.insert(0, student));
+  }
+
+  void _editStudent(Student updatedStudent) {
+    setState(() {
+      final index = _students.indexWhere(
+        (student) => student.id == updatedStudent.id,
+      );
+      if (index != -1) _students[index] = updatedStudent;
+    });
+  }
+
+  void _deleteStudent(String studentId) {
+    setState(() {
+      _students.removeWhere((student) => student.id == studentId);
+      for (final dailyRecords in widget.attendanceRecords.values) {
+        dailyRecords.remove(studentId);
+      }
+      widget.attendanceRecords.removeWhere((_, records) => records.isEmpty);
+    });
+  }
+
+  void _addClass(ClassInfo newClass) {
+    setState(() => _classes.insert(0, newClass));
+  }
+
+  void _updateClass(ClassInfo updatedClass) {
+    setState(() {
+      final index = _classes.indexWhere(
+        (classInfo) => classInfo.id == updatedClass.id,
+      );
+      if (index == -1) return;
+      final oldTitle = _classes[index].title;
+      _classes[index] = updatedClass;
+      if (oldTitle != updatedClass.title) {
+        for (
+          var studentIndex = 0;
+          studentIndex < _students.length;
+          studentIndex++
+        ) {
+          if (_students[studentIndex].classCode == oldTitle) {
+            _students[studentIndex] = _students[studentIndex].copyWith(
+              classCode: updatedClass.title,
+            );
+          }
+        }
+      }
+    });
+  }
+
+  void _deleteClass(String classId) {
+    setState(
+      () => _classes.removeWhere((classInfo) => classInfo.id == classId),
+    );
+  }
+
+  void _updateStudentScore(String id, double newScore) {
+    setState(() {
+      final index = _students.indexWhere((s) => s.id == id);
+      if (index != -1) {
+        _students[index] = _students[index].copyWith(score: newScore);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: CardContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.book_outlined,
-                    color: Color(0xFF2563EB),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        classInfo.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        '${classInfo.subtitle} • Phòng ${classInfo.room}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (onEdit != null || onDelete != null)
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (action) {
-                      if (action == 'edit') onEdit?.call();
-                      if (action == 'delete') onDelete?.call();
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Sửa lớp')),
-                      PopupMenuItem(value: 'delete', child: Text('Xóa lớp')),
-                    ],
-                  ),
-              ],
+    final filteredStudents = _students.where((s) {
+      final query = _searchQuery.toLowerCase();
+      return s.name.toLowerCase().contains(query) ||
+          s.email.toLowerCase().contains(query) ||
+          s.classCode.toLowerCase().contains(query);
+    }).toList();
+    final isAdmin = widget.role == AppRole.admin;
+    final isGuest = widget.role == AppRole.guest;
+
+    final List<Widget> screens = [
+      OverviewTab(
+        username: widget.username,
+        students: _students,
+        classes: _classes,
+        attendanceRate: _overallAttendanceRate,
+      ),
+      StudentsTab(
+        students: filteredStudents,
+        onAddStudent: _addStudent,
+        onEditStudent: _editStudent,
+        onDeleteStudent: _deleteStudent,
+        onUpdateScore: _updateStudentScore,
+        onSearchChanged: (val) => setState(() => _searchQuery = val),
+        classCodes: _classes.map((classInfo) => classInfo.title).toList(),
+        canManage: isAdmin,
+        canEditScores: !isGuest,
+      ),
+      ClassesTab(
+        classes: _classes,
+        students: _students,
+        onAddClass: _addClass,
+        onUpdateClass: _updateClass,
+        onDeleteClass: _deleteClass,
+        canManage: isAdmin,
+      ),
+      AttendanceTab(
+        students: _students,
+        classes: _classes,
+        records: widget.attendanceRecords,
+        onSetAttendance: widget.onSetAttendance,
+        canEdit: !isGuest,
+      ),
+      ProfileTab(
+        username: widget.username,
+        role: widget.role,
+        userRoles: widget.userRoles,
+        onRoleChanged: widget.onRoleChanged,
+        onLogout: widget.onLogout,
+      ),
+    ];
+
+    return Scaffold(
+      body: SafeArea(
+        child: IndexedStack(index: _currentIndex, children: screens),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tiến độ học phần',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-                Text(
-                  '${(classInfo.progress * 100).toInt()}%',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2563EB),
-                  ),
-                ),
-              ],
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF2563EB),
+          unselectedItemColor: const Color(0xFF94A3B8),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded),
+              label: 'Tổng quan',
             ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: classInfo.progress,
-                backgroundColor: const Color(0xFFF1F5F9),
-                color: const Color(0xFF2563EB),
-                minHeight: 6,
-              ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_outline_rounded),
+              label: 'Sinh viên',
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${classInfo.studentCount} sinh viên',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF475569),
-                  ),
-                ),
-                Text(
-                  classInfo.teacherName,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            BottomNavigationBarItem(
+              icon: Icon(Icons.book_outlined),
+              label: 'Lớp học',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.fact_check_outlined),
+              label: 'Điểm danh',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              label: 'Hồ sơ',
             ),
           ],
         ),
       ),
     );
+  }
+
+  double get _overallAttendanceRate {
+    var present = 0;
+    var marked = 0;
+    for (final record in widget.attendanceRecords.values) {
+      for (final attendance in record.values) {
+        marked++;
+        if (attendance) present++;
+      }
+    }
+    return marked == 0 ? 0 : present * 100 / marked;
   }
 }
