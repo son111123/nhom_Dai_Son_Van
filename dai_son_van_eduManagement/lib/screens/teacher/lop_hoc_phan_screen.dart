@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/hoc_phan_service.dart';
+import '../shared/thoi_khoa_bieu_screen.dart';
 import 'danh_sach_diem_screen.dart';
 import 'buoi_hoc_screen.dart';
 
@@ -19,6 +20,7 @@ class _LopHocPhanScreenState extends State<LopHocPhanScreen> {
   @override
   void initState() {
     super.initState();
+
     _lopStream = HocPhanService().layLopPhuTrach();
   }
 
@@ -98,6 +100,15 @@ class _LopHocPhanScreenState extends State<LopHocPhanScreen> {
                           children: [
                             SimpleDialogOption(
                               onPressed: () {
+                                Navigator.pop(dialogContext, 'lichHoc');
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Text('Xem thời khóa biểu'),
+                              ),
+                            ),
+                            SimpleDialogOption(
+                              onPressed: () {
                                 Navigator.pop(dialogContext, 'bangDiem');
                               },
                               child: const Padding(
@@ -131,11 +142,23 @@ class _LopHocPhanScreenState extends State<LopHocPhanScreen> {
                       },
                     );
 
-                    if (!context.mounted || luaChon == null) return;
+                    if (!context.mounted || luaChon == null) {
+                      return;
+                    }
 
                     final tenMon = data['tenMon'] as String? ?? '';
 
-                    if (luaChon == 'diemDanh') {
+                    if (luaChon == 'lichHoc') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ThoiKhoaBieuScreen(
+                            vaiTro: 'teacher',
+                            maLHP: doc.id,
+                          ),
+                        ),
+                      );
+                    } else if (luaChon == 'diemDanh') {
                       Navigator.push(
                         context,
                         MaterialPageRoute(

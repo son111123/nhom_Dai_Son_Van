@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/auth_service.dart';
+import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,8 +15,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _emailControler = TextEditingController();
-  final _passwordControler = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
   final _authService = AuthService();
 
   bool _dangXuLy = false;
@@ -23,8 +25,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailControler.dispose();
-    _passwordControler.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -38,11 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.dangNhap(
-        _emailControler.text,
-        _passwordControler.text,
+        _emailController.text,
+        _passwordController.text,
       );
 
-      // RoleGate tu chuyen man hinh khi dang nhap thanh cong.
+      // RoleGate tu chuyen man hinh.
     } on FirebaseAuthException catch (e) {
       String thongBao;
 
@@ -62,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
           break;
 
         case 'too-many-requests':
-          thongBao = 'Thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.';
+          thongBao = 'Thử đăng nhập quá nhiều lần. Hãy thử lại sau.';
           break;
 
         case 'network-request-failed':
@@ -107,13 +109,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.shop_outlined,
-                      size: 80.0,
+                      Icons.school_outlined,
+                      size: 80,
                       color: Color(0xFF5140E8),
                     ),
-
                     const SizedBox(height: 16),
-
                     const Text(
                       'EduManagement',
                       style: TextStyle(
@@ -122,58 +122,55 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Color(0xFF5140E8),
                       ),
                     ),
-
                     const SizedBox(height: 32),
-
-                    //Nhap email
                     TextFormField(
-                      controller: _emailControler,
+                      controller: _emailController,
+                      enabled: !_dangXuLy,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         final email = value?.trim() ?? '';
 
-                        if (email.isEmpty) {
-                          return 'Vui lòng nhập email';
-                        }
-
                         if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                             .hasMatch(email)) {
-                          return 'Email không đúng định dạng';
+                          return 'Nhập email hợp lệ';
                         }
 
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    //Nhap mat khau
                     TextFormField(
-                      controller: _passwordControler,
+                      controller: _passwordController,
+                      enabled: !_dangXuLy,
                       obscureText: _anMatKhau,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _dangNhap(),
                       decoration: InputDecoration(
                         labelText: 'Mật khẩu',
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
-                          tooltip: _anMatKhau ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                          onPressed: _dangXuLy
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _anMatKhau = !_anMatKhau;
+                                  });
+                                },
                           icon: Icon(
                             _anMatKhau
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _anMatKhau = !_anMatKhau;
-                            });
-                          },
                         ),
                       ),
                       validator: (value) {
@@ -184,9 +181,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-
-                    const SizedBox(height: 32),
-
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _dangXuLy
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ForgotPasswordScreen(
+                                      emailBanDau: _emailController.text.trim(),
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text('Quên mật khẩu?'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -194,9 +207,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _dangXuLy ? null : _dangNhap,
                         child: Text(
                           _dangXuLy ? 'Đang đăng nhập...' : 'Đăng nhập',
-                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _dangXuLy
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text('Chưa có tài khoản? Đăng ký'),
                     ),
                   ],
                 ),

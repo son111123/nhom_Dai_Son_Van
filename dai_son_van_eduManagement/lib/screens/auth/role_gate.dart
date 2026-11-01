@@ -105,6 +105,14 @@ class _TaiKhoanGateState extends State<TaiKhoanGate> {
         final hoTen = data['hoTen'] is String ? data['hoTen'] as String : 'bạn';
 
         switch (data['role']) {
+          case 'pending':
+            return const TrangVaiTro(
+              tieuDe: 'Chờ cấp quyền',
+              noiDung:
+                  'Tài khoản đã đăng ký thành công. '
+                  'Vui lòng liên hệ quản trị viên để được cấp quyền '
+                  'và liên kết hồ sơ.',
+            );
           case 'admin':
             return AdminMainScreen(hoTen: hoTen);
 

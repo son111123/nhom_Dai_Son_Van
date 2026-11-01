@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../shared/thoi_khoa_bieu_screen.dart';
 import 'admin_home_screen.dart';
 import 'sinh_vien_list_screen.dart';
 import 'lop_list_screen.dart';
@@ -33,40 +34,39 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           const SinhVienListScreen(),
           const LopListScreen(),
           const MonHocListScreen(),
+          const ThoiKhoaBieuScreen(vaiTro: 'admin'),
         ],
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabHienTai,
+        onDestinationSelected: _chuyenTab,
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFFE8E5FF),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-
-        onDestinationSelected: _chuyenTab,
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home, color: Color(0xFF5140E8)),
             label: 'Trang chủ',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.people_outline),
             selectedIcon: Icon(Icons.people, color: Color(0xFF5140E8)),
             label: 'Sinh viên',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.class_outlined),
             selectedIcon: Icon(Icons.class_, color: Color(0xFF5140E8)),
             label: 'Lớp',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book, color: Color(0xFF5140E8)),
             label: 'Môn học',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month),
+            label: 'Lịch học',
           ),
         ],
       ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/quan_ly_hoc_phan_service.dart';
+import '../shared/thoi_khoa_bieu_screen.dart';
+import '../shared/ten_giang_vien.dart';
 import 'hoc_phan_form_screen.dart';
 import 'tao_lich_hoc_screen.dart';
 
@@ -20,6 +22,7 @@ class _QuanLyHocPhanScreenState extends State<QuanLyHocPhanScreen> {
   @override
   void initState() {
     super.initState();
+
     _lopStream = _service.layDanhSach();
   }
 
@@ -147,6 +150,9 @@ class _QuanLyHocPhanScreenState extends State<QuanLyHocPhanScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text('Học kỳ ${data['hocKy']} · ${data['namHoc']}'),
+                      TenGiangVienPhuTrach(
+                        uid: data['giangVienUid'] as String? ?? '',
+                      ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
@@ -161,8 +167,24 @@ class _QuanLyHocPhanScreenState extends State<QuanLyHocPhanScreen> {
                             child: const Text('Thêm sinh viên'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: () =>
-                                _moTaoLich(maLHP: doc.id, tenMon: tenMon),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ThoiKhoaBieuScreen(
+                                    vaiTro: 'admin',
+                                    maLHP: doc.id,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.event_note),
+                            label: const Text('Xem thời khóa biểu'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              _moTaoLich(maLHP: doc.id, tenMon: tenMon);
+                            },
                             icon: const Icon(Icons.calendar_month),
                             label: const Text('Tạo lịch học'),
                           ),
@@ -224,7 +246,9 @@ class _GhiDanhDialogState extends State<GhiDanhDialog> {
       });
     } finally {
       if (mounted) {
-        setState(() => _dangLuu = false);
+        setState(() {
+          _dangLuu = false;
+        });
       }
     }
 
@@ -324,7 +348,9 @@ class _DanhSachGhiDanhScreenState extends State<DanhSachGhiDanhScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                      onPressed: () => setState(_taiDuLieu),
+                      onPressed: () {
+                        setState(_taiDuLieu);
+                      },
                       child: const Text('Thử lại'),
                     ),
                   ],

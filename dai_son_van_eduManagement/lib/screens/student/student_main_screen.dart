@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../shared/thoi_khoa_bieu_screen.dart';
 import 'student_home_screen.dart';
 import 'ho_so_screen.dart';
 import 'ket_qua_screen.dart';
@@ -36,6 +37,7 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
           ),
           HoSoScreen(maSV: widget.maSV),
           KetQuaScreen(maSV: widget.maSV),
+          ThoiKhoaBieuScreen(vaiTro: 'student', maSV: widget.maSV),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -60,6 +62,10 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
             icon: Icon(Icons.assessment_outlined),
             selectedIcon: Icon(Icons.assessment, color: Color(0xFF5140E8)),
             label: 'Kết quả',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month),
+            label: 'Lịch học',
           ),
         ],
       ),
