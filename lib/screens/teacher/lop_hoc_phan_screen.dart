@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/hoc_phan_service.dart';
 import 'danh_sach_diem_screen.dart';
+import 'buoi_hoc_screen.dart';
 
 class LopHocPhanScreen extends StatefulWidget {
   const LopHocPhanScreen({super.key});
@@ -88,16 +89,69 @@ class _LopHocPhanScreenState extends State<LopHocPhanScreen> {
                   title: Text('${doc.id} — ${data['tenMon']}'),
                   subtitle: Text('Học kỳ ${data['hocKy']} · ${data['namHoc']}'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DanhSachDiemScreen(
-                          maLHP: doc.id,
-                          tenMon: data['tenMon'] as String,
-                        ),
-                      ),
+                  onTap: () async {
+                    final luaChon = await showDialog<String>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return SimpleDialog(
+                          title: Text('Lớp ${doc.id}'),
+                          children: [
+                            SimpleDialogOption(
+                              onPressed: () {
+                                Navigator.pop(dialogContext, 'bangDiem');
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.grade_outlined),
+                                    SizedBox(width: 12),
+                                    Text('Bảng điểm'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SimpleDialogOption(
+                              onPressed: () {
+                                Navigator.pop(dialogContext, 'diemDanh');
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.fact_check_outlined),
+                                    SizedBox(width: 12),
+                                    Text('Điểm danh'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
+
+                    if (!context.mounted || luaChon == null) return;
+
+                    final tenMon = data['tenMon'] as String? ?? '';
+
+                    if (luaChon == 'diemDanh') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BuoiHocScreen(maLHP: doc.id, tenMon: tenMon),
+                        ),
+                      );
+                    } else if (luaChon == 'bangDiem') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              DanhSachDiemScreen(maLHP: doc.id, tenMon: tenMon),
+                        ),
+                      );
+                    }
                   },
                 ),
               );

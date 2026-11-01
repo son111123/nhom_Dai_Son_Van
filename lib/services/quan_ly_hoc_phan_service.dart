@@ -23,10 +23,19 @@ class QuanLyHocPhanService {
     required String namHoc,
   }) async {
     final ma = maLHP.trim().toUpperCase();
+    final maMonChuan = maMon.trim().toUpperCase();
     final nam = namHoc.trim();
 
     if (!RegExp(r'^[A-Z0-9-]{1,30}$').hasMatch(ma)) {
       throw Exception('Mã lớp chỉ gồm chữ không dấu, số và dấu -.');
+    }
+
+    if (!RegExp(r'^[A-Z0-9_-]{1,30}$').hasMatch(maMonChuan)) {
+      throw Exception('Mã môn học không hợp lệ.');
+    }
+
+    if (giangVienUid.trim().isEmpty) {
+      throw Exception('Vui lòng chọn giảng viên phụ trách.');
     }
 
     if (![1, 2, 3].contains(hocKy)) {
@@ -44,7 +53,7 @@ class QuanLyHocPhanService {
     }
 
     final lopRef = _db.collection('lopHocPhan').doc(ma);
-    final monRef = _db.collection('monHoc').doc(maMon);
+    final monRef = _db.collection('monHoc').doc(maMonChuan);
     final gvRef = _db.collection('users').doc(giangVienUid);
 
     await _db.runTransaction((transaction) async {
@@ -64,9 +73,24 @@ class QuanLyHocPhanService {
         throw Exception('Tài khoản được chọn không phải giảng viên.');
       }
 
+      final monData = mon.data()!;
+      final tenMon = monData['tenMon'];
+      final soTinChi = monData['soTinChi'];
+
+      if (tenMon is! String ||
+          tenMon.trim().isEmpty ||
+          soTinChi is! int ||
+          soTinChi <= 0) {
+        throw Exception('Thông tin môn học không hợp lệ.');
+      }
+
+      // Khóa môn trước khi sử dụng cho lớp học phần.
+      // Cùng transaction nên hai thao tác thành công hoặc thất bại cùng nhau.
+      transaction.update(monRef, {'daSuDung': true});
+
       transaction.set(lopRef, {
-        'maMon': maMon,
-        'tenMon': mon.data()!['tenMon'],
+        'maMon': maMonChuan,
+        'tenMon': tenMon,
         'giangVienUid': giangVienUid,
         'hocKy': hocKy,
         'namHoc': nam,
