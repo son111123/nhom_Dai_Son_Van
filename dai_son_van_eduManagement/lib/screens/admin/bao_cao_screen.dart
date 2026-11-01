@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/bao_cao_tong_quan.dart';
 import '../../services/bao_cao_service.dart';
 
+import 'bao_cao_hoc_luc_screen.dart';
+
 class BaoCaoScreen extends StatefulWidget {
   const BaoCaoScreen({super.key});
 
@@ -177,6 +179,16 @@ class _BaoCaoScreenState extends State<BaoCaoScreen> {
       appBar: AppBar(
         title: const Text('Thống kê và báo cáo'),
         actions: [
+          IconButton(
+            tooltip: 'Thống kê học lực',
+            icon: const Icon(Icons.school_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BaoCaoHocLucScreen()),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Tải lại số liệu',
             onPressed: _taiLai,
