@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/bao_cao_tong_quan.dart';
 import '../models/bao_cao_hoc_luc.dart';
+import '../models/bao_cao_vang_hoc.dart';
 import 'thong_ke_diem_service.dart';
 
 class BaoCaoService {
@@ -194,5 +195,123 @@ class BaoCaoService {
     }
 
     return baoCao;
+  }
+
+  Future<BaoCaoVangHoc> layBaoCaoVangHoc({
+    required DateTime tuNgay,
+    required DateTime denNgay,
+  }) async {
+    await _kiemTraQuyenAdmin();
+
+    final batDau = DateTime(tuNgay.year, tuNgay.month, tuNgay.day);
+
+    final ngayCuoi = DateTime(denNgay.year, denNgay.month, denNgay.day);
+
+    if (ngayCuoi.isBefore(batDau)) {
+      throw Exception('Ngày kết thúc không được trước ngày bắt đầu.');
+    }
+
+    // Lấy đến trước 00:00 của ngày kế tiếp,
+    // để bao gồm toàn bộ ngày kết thúc.
+    final ketThuc = DateTime(ngayCuoi.year, ngayCuoi.month, ngayCuoi.day + 1);
+
+    final cacLop = await _db
+        .collection('lopHocPhan')
+        .get(const GetOptions(source: Source.server));
+
+    final thongKe = <String, SinhVienVangHoc>{};
+    var soBuoiDaChot = 0;
+
+    for (final lop in cacLop.docs) {
+      final cacBuoi = await lop.reference
+          .collection('buoiHoc')
+          .where('ngayHoc', isGreaterThanOrEqualTo: Timestamp.fromDate(batDau))
+          .where('ngayHoc', isLessThan: Timestamp.fromDate(ketThuc))
+          .get(const GetOptions(source: Source.server));
+
+      for (final buoi in cacBuoi.docs) {
+        final buoiData = buoi.data();
+
+        if (buoiData['trangThai'] != 'daChot') {
+          continue;
+        }
+
+        final ngayHoc = (buoiData['ngayHoc'] as Timestamp).toDate();
+
+        final diemDanh = await buoi.reference
+            .collection('diemDanh')
+            .get(const GetOptions(source: Source.server));
+
+        if (diemDanh.docs.isEmpty) {
+          throw Exception(
+            'Lớp ${lop.id}, buổi ${buoi.id}: '
+            'đã chốt nhưng không có danh sách điểm danh.',
+          );
+        }
+
+        soBuoiDaChot++;
+
+        for (final doc in diemDanh.docs) {
+          final data = doc.data();
+          final trangThai = data['trangThai'];
+
+          if (!['coMat', 'vangMat', 'diMuon'].contains(trangThai)) {
+            throw Exception(
+              'Lớp ${lop.id}, buổi ${buoi.id}: '
+              'sinh viên ${doc.id} chưa có trạng thái hợp lệ.',
+            );
+          }
+
+          if (trangThai != 'vangMat') {
+            continue;
+          }
+
+          final hoTen = data['hoTen'];
+
+          if (hoTen is! String || hoTen.trim().isEmpty) {
+            throw Exception('Bản ghi điểm danh của ${doc.id} thiếu họ tên.');
+          }
+
+          final hienTai = thongKe[doc.id];
+
+          if (hienTai == null) {
+            thongKe[doc.id] = SinhVienVangHoc(
+              maSV: doc.id,
+              hoTen: hoTen,
+              soLuotVang: 1,
+              ngayVangGanNhat: ngayHoc,
+            );
+          } else {
+            final laNgayMoiHon = ngayHoc.isAfter(hienTai.ngayVangGanNhat);
+
+            thongKe[doc.id] = SinhVienVangHoc(
+              maSV: doc.id,
+              hoTen: laNgayMoiHon ? hoTen : hienTai.hoTen,
+              soLuotVang: hienTai.soLuotVang + 1,
+              ngayVangGanNhat: laNgayMoiHon ? ngayHoc : hienTai.ngayVangGanNhat,
+            );
+          }
+        }
+      }
+    }
+
+    final danhSach = thongKe.values.toList();
+
+    // Sinh viên vắng nhiều nhất đứng trước.
+    danhSach.sort((a, b) {
+      final soSanhLuot = b.soLuotVang.compareTo(a.soLuotVang);
+
+      if (soSanhLuot != 0) return soSanhLuot;
+
+      return a.maSV.compareTo(b.maSV);
+    });
+
+    return BaoCaoVangHoc(
+      tuNgay: batDau,
+      denNgay: ngayCuoi,
+      soBuoiDaChot: soBuoiDaChot,
+      capNhatLuc: DateTime.now(),
+      danhSach: danhSach,
+    );
   }
 }
