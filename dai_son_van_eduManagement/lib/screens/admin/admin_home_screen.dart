@@ -6,6 +6,7 @@ import '../../services/lop_service.dart';
 import 'quan_ly_hoc_phan_screen.dart';
 
 import 'sinh_vien_form_screen.dart';
+import 'bao_cao_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   final String hoTen;
@@ -108,6 +109,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Thống kê và báo cáo',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BaoCaoScreen()),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Đăng xuất',
             onPressed: _dangDangXuat ? null : _dangXuat,
