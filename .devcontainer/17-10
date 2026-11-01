@@ -1,0 +1,308 @@
+import 'package:flutter/material.dart';
+
+class Genericclass<T> {
+  T id;
+  T name;
+  T description;
+
+  Genericclass({
+    required this.id,
+    required this.name,
+    required this.description,
+  });
+
+  T getId() => id;
+  T getName() => name;
+  T getDescription() => description;
+
+  T setId(T newId) {
+    id = newId;
+    return id;
+  }
+
+  T setName(T newName) {
+    name = newName;
+    return name;
+  }
+
+  T setDescription(T newDescription) {
+    description = newDescription;
+    return description;
+  }
+}
+class Student extends Genericclass<String> {
+  String major; 
+  double gpa; 
+
+  Student({
+    required String id,
+    required String name,
+    required String description,
+    required this.major,
+    required this.gpa,
+  }) : super(id: id, name: name, description: description);
+  String getAcademicStatus() {
+    if (gpa >= 3.6) return 'Xuất sắc';
+    if (gpa >= 3.2) return 'Giỏi';
+    if (gpa >= 2.5) return 'Khá';
+    if (gpa >= 2.0) return 'Trung bình';
+    return 'Yếu/Kém';
+  }
+}
+abstract class BaseGenericScreen<T> extends StatelessWidget {
+  final String title;
+  final List<T> items;
+  final Widget? floatingActionButton;
+
+  const BaseGenericScreen({
+    Key? key,
+    required this.title,
+    required this.items,
+    this.floatingActionButton,
+  }) : super(key: key);
+  Widget buildItemTile(BuildContext context, T item);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+      body: items.isEmpty
+          ? const Center(
+              child: Text(
+                'Danh sách trống! Nhấn nút (+) để thêm.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12.0),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: buildItemTile(context, items[index]),
+                );
+              },
+            ),
+      floatingActionButton: floatingActionButton,
+    );
+  }
+}
+class StudentScreen extends BaseGenericScreen<Student> {
+  final Function(Student) onDeleteStudent;
+
+  const StudentScreen({
+    Key? key,
+    required List<Student> students,
+    required this.onDeleteStudent,
+    Widget? floatingActionButton,
+  }) : super(
+          key: key,
+          title: 'Quản Lý Sinh Viên (Generics)',
+          items: students,
+          floatingActionButton: floatingActionButton,
+        );
+
+  @override
+  Widget buildItemTile(BuildContext context, Student student) {
+    Color gpaColor = student.gpa >= 3.2
+        ? Colors.green
+        : (student.gpa >= 2.0 ? Colors.orange : Colors.red);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.indigo.shade100,
+        child: Text(
+          student.getId(),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 11, color: Colors.indigo),
+        ),
+      ),
+      title: Text(
+        student.getName(),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Chuyên ngành: ${student.major} | Lớp: ${student.getDescription()}'),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: gpaColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'GPA: ${student.gpa.toStringAsFixed(2)} (${student.getAcademicStatus()})',
+                style: TextStyle(
+                    color: gpaColor, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+        onPressed: () => onDeleteStudent(student),
+      ),
+    );
+  }
+}
+
+void main() {
+  runApp(const MyApp());
+}
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Dự án Quản Lý Sinh Viên',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        useMaterial3: true,
+      ),
+      home: const StudentManagementApp(),
+    );
+  }
+}
+
+class StudentManagementApp extends StatefulWidget {
+  const StudentManagementApp({Key? key}) : super(key: key);
+
+  @override
+  State<StudentManagementApp> createState() => _StudentManagementAppState();
+}
+
+class _StudentManagementAppState extends State<StudentManagementApp> {
+  // Danh sách sinh viên khởi tạo sẵn
+  final List<Student> _students = [
+    Student(
+      id: 'SV001',
+      name: 'Nguyễn Văn A',
+      description: 'D20CQCN01',
+      major: 'Công nghệ thông tin',
+      gpa: 3.65,
+    ),
+    Student(
+      id: 'SV002',
+      name: 'Trần Thị B',
+      description: 'D20CQVT01',
+      major: 'Viễn thông',
+      gpa: 3.10,
+    ),
+    Student(
+      id: 'SV003',
+      name: 'Lê Văn C',
+      description: 'D20CQAT01',
+      major: 'An toàn thông tin',
+      gpa: 1.85,
+    ),
+  ];
+  void _deleteStudent(Student student) {
+    setState(() {
+      _students.removeWhere((item) => item.getId() == student.getId());
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Đã xóa sinh viên: ${student.getName()}')),
+    );
+  }
+  void _showAddStudentDialog() {
+    final idController = TextEditingController();
+    final nameController = TextEditingController();
+    final classController = TextEditingController();
+    final majorController = TextEditingController();
+    final gpaController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Thêm Sinh Viên Mới'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: idController,
+                  decoration: const InputDecoration(labelText: 'Mã SV (ID)'),
+                ),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Họ và Tên'),
+                ),
+                TextField(
+                  controller: classController,
+                  decoration: const InputDecoration(labelText: 'Lớp (Mô tả)'),
+                ),
+                TextField(
+                  controller: majorController,
+                  decoration: const InputDecoration(labelText: 'Chuyên ngành'),
+                ),
+                TextField(
+                  controller: gpaController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Điểm GPA (0.0 - 4.0)'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (idController.text.isNotEmpty && nameController.text.isNotEmpty) {
+                  setState(() {
+                    _students.add(
+                      Student(
+                        id: idController.text,
+                        name: nameController.text,
+                        description: classController.text.isEmpty ? 'Chưa xếp lớp' : classController.text,
+                        major: majorController.text.isEmpty ? 'CNTT' : majorController.text,
+                        gpa: double.tryParse(gpaController.text) ?? 0.0,
+                      ),
+                    );
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Thêm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StudentScreen(
+      students: _students,
+      onDeleteStudent: _deleteStudent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddStudentDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Thêm SV'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+}
