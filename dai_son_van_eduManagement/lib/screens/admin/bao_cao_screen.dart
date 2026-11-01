@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/bao_cao_tong_quan.dart';
 import '../../services/bao_cao_service.dart';
+import 'bao_cao_vang_hoc_screen.dart';
 
 import 'bao_cao_hoc_luc_screen.dart';
 
@@ -186,6 +187,16 @@ class _BaoCaoScreenState extends State<BaoCaoScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const BaoCaoHocLucScreen()),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Báo cáo vắng học',
+            icon: const Icon(Icons.person_off_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BaoCaoVangHocScreen()),
               );
             },
           ),
